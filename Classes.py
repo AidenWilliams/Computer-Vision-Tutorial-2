@@ -66,31 +66,25 @@ class Window(object):
     def __str__(self):
         return "Top Left Corner " + str(self.top_left) + "\nBot Right Corner " + str(self.bot_right)
 
-# make all kernels same with transpose for [1]
-class Sobel:
-    def __init__(self, weight=1/8):
-        self.kernels = []
-        self.kernels.append((np.array([[-1, 0, 1],
-                                       [-2, 0, 2],
-                                       [-1, 0, 1]])))
-        self.kernels.append((np.array([[-1, -2, -1],
-                                       [0, 0, 0],
-                                       [1, 2, 1]])))
+
+class Kernel:
+    def __init__(self, kernel, weight):
+        self.kernel = kernel
         self.weight = weight
 
-    def filter(self, roi, axis=2, channels=1):
+    def filter(self, roi, axis=0, channels=1):
         if axis == 2:
             ret = []
             for i in range(channels):
-                if channels != 1:
-                    _filter = self.kernels[0] * roi[:, :, i]
+                if channels == 1:
+                    _filter = self.kernel * roi
                 else:
-                    _filter = self.kernels[0] * roi
+                    _filter = self.kernel * roi[:, :, i]
                 sum_of_filter1 = _filter.sum()
-                if channels != 1:
-                    _filter = self.kernels[1] * roi[:, :, i]
+                if channels == 1:
+                    _filter = self.kernel.T * roi
                 else:
-                    _filter = self.kernels[1] * roi
+                    _filter = self.kernel.T * roi[:, :, i]
                 sum_of_filter2 = _filter.sum()
                 ret.append((((sum_of_filter1 ** 2) + (sum_of_filter2 ** 2)) ** (1 / 2)) * self.weight)
 
@@ -98,28 +92,28 @@ class Sobel:
         else:
             ret = []
             for i in range(channels):
-                if channels != 1:
-                    _filter = self.kernels[axis] * roi[:, :, i]
+                if channels == 1:
+                    _filter = self.kernel * roi
                 else:
-                    _filter = self.kernels[axis] * roi
+                    _filter = self.kernel * roi[:, :, i]
                 ret.append(_filter.sum() * self.weight)
 
             return np.array(ret)
 
-    def filterImage(self, image, stride=1, window=None, axis=2):
-        new_roi = []
+    def filterImage(self, image, stride=1, window=None, axis=0):
+        new_image = []
         line = []
         if window is None:
-            moving_kernel = Window(image, 3, stride)
+            moving_kernel = Window(image, self.kernel.shape[0], stride)
         else:
             image = window.getImageInBoundary(image)
-            moving_kernel = Window(image, 3, stride)
+            moving_kernel = Window(image, self.kernel.shape[0], stride)
 
         new_tl, _ = moving_kernel.forwardPos()
         while moving_kernel.inBoundary(new_tl):
             roi = moving_kernel.getImageInBoundary(image)
             if moving_kernel.changedY():
-                new_roi.append(line)
+                new_image.append(line)
                 line = []
 
             line.append(self.filter(roi, axis, moving_kernel.channels))
@@ -127,48 +121,18 @@ class Sobel:
             moving_kernel.forwardMove()
             new_tl, _ = moving_kernel.forwardPos()
 
-        return np.array(new_roi)
+        return np.array(new_image)
 
 
-class Kernel:
-    def __init__(self, kernel, weight):
-        self.kernel = kernel
-        self.weight = weight
+class Sobel:
+    def __init__(self, weight):
+        self.kernel = Kernel(np.array([[-1, 0, 1],
+                                       [-2, 0, 2],
+                                       [-1, 0, 1]]),
+                             weight)
 
-    def filter(self, roi, channels=1):
-        ret = []
-        for i in range(channels):
-            if channels != 1:
-                _filter = self.kernel * roi[:, :, i]
-            else:
-                _filter = self.kernel * roi
-            ret.append(_filter.sum() * self.weight)
-
-        return np.array(ret)
-
-    def filterImage(self, image, stride=1, window=None):
-        new_roi = []
-        line = []
-        if window is None:
-            # go over entire image
-            moving_kernel = Window(image, self.kernel.shape[0], stride)
-        else:
-            image = window.getImageInBoundary(image)
-            moving_kernel = Window(image, self.kernel.shape[0], stride)
-
-        new_tl, _ = moving_kernel.forwardPos()
-        while moving_kernel.inBoundary(new_tl):
-            roi = moving_kernel.getImageInBoundary(image)
-            if moving_kernel.changedY():
-                new_roi.append(line)
-                line = []
-
-            line.append(self.filter(roi, moving_kernel.channels))
-
-            moving_kernel.forwardMove()
-            new_tl, _ = moving_kernel.forwardPos()
-
-        return np.array(new_roi)
+    def filterImage(self, image, stride=1, window=None, axis=2):
+        return self.kernel.filterImage(image, stride, window, axis)
 
 
 class Gaussian:
@@ -180,8 +144,8 @@ class Gaussian:
         x0 = y0 = size // 2
         self.kernel = Kernel(np.exp(-4 * np.log(2) * ((x - x0) ** 2 + (y - y0) ** 2) / fwhm ** 2), weight)
 
-    def filterImage(self, image, stride=1, window=None):
-        return self.kernel.filterImage(image, stride, window)
+    def filterImage(self, image, stride=1, window=None, axis=0):
+        return self.kernel.filterImage(image, stride, window, axis)
 
 
 class Bilinear:
@@ -191,5 +155,5 @@ class Bilinear:
                                        [1, 2, 1]]),
                              weight)
 
-    def filterImage(self, image, stride=1, window=None):
-        return self.kernel.filterImage(image, stride, window)
+    def filterImage(self, image, stride=1, window=None, axis=0):
+        return self.kernel.filterImage(image, stride, window, axis)
