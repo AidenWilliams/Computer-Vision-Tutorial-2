@@ -4,7 +4,7 @@ import numpy as np
 class Window(object):
     def __init__(self, image, n, s):
         self.x_boundary = image.shape[1] + n
-        self.y_boundary = image.shape[0] + s
+        self.y_boundary = image.shape[0] + n
         self.top_left = (0, 0)
         self.bot_right = (n, n)
         self.previousBotY = n
@@ -51,7 +51,6 @@ class Window(object):
             self.previousBotY = self.bot_right[1]
             return True
 
-    # add get image in boundary
     def getImageInBoundary(self, image):
         new_image = []
         for i in range(self.top_left[1], self.bot_right[1]):
@@ -60,10 +59,9 @@ class Window(object):
             new_image.append(image[i][self.top_left[0]: self.bot_right[0]])
 
         if self.channels == 1:
-            x = np.resize(np.array(new_image), (self.height, self.height))
+            return np.resize(np.array(new_image), (self.height, self.height))
         else:
-            x = np.resize(np.array(new_image), (self.height, self.height, self.channels))
-        return x
+            return np.resize(np.array(new_image), (self.height, self.height, self.channels))
 
     def __str__(self):
         return "Top Left Corner " + str(self.top_left) + "\nBot Right Corner " + str(self.bot_right)
@@ -80,12 +78,6 @@ class Sobel:
                                        [1, 2, 1]])))
 
     def filter(self, roi, axis=0, channels=1):
-        """
-        :param roi: image that will have the filter applied to it
-        :param axis: 0 is x, 1 is y, 3 is both
-        :return:
-        """
-
         if axis == 3:
             ret = []
             for i in range(channels):
@@ -108,7 +100,6 @@ class Sobel:
         new_roi = []
         line = []
         if window is None:
-            # go over entire image
             moving_kernel = Window(image, 3, stride)
         else:
             image = window.getImageInBoundary(image)
@@ -134,11 +125,6 @@ class Kernel:
         self.kernel = kernel
 
     def filter(self, roi, channels=1):
-        """
-        :param roi: image that will have the filter applied to it
-        :return:
-        """
-
         ret = []
         for i in range(channels):
             _filter = self.kernel * roi[:, :, i]
