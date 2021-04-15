@@ -13,6 +13,14 @@ class Window(object):
         self.previousBotY = n
         self.height = n
         self.stride = (s, s)
+        try:
+            self.channels = image.shape[2]
+        except:
+            self.channels = 1
+
+    def resetPos(self):
+        self.top_left = (0, 0)
+        self.bot_right = (self.height, self.height)
 
     def forwardPos(self):
         # Case when you need to go down and start new line
@@ -26,20 +34,6 @@ class Window(object):
 
     def forwardMove(self):
         self.top_left, self.bot_right = self.forwardPos()
-        return self.top_left, self.bot_right
-
-    def backwardPos(self):
-        # Case when you need to go up and go end of line
-        if (self.top_left - self.stride)[0] < 0:
-            return (self.x_boundary - self.height, self.top_left[1] - self.stride[1]), (
-                self.x_boundary, self.bot_right[1] - self.stride[1])
-        # generic move left case
-        else:
-            return (self.top_left[0] - self.stride[0], self.top_left[1]), (
-                self.bot_right[0] - self.stride[0], self.bot_right[1])
-
-    def backwardMove(self):
-        self.top_left, self.bot_right = self.backwardPos()
         return self.top_left, self.bot_right
 
     def inBoundary(self, new_top_left=None, new_bot_right=None):
@@ -66,7 +60,10 @@ class Window(object):
                 continue
             new_image.append(image[i][self.top_left[0]: self.bot_right[0]])
 
-        x = np.resize(np.array(new_image), (self.height, self.height))
+        if self.channels == 1:
+            x = np.resize(np.array(new_image), (self.height, self.height))
+        else:
+            x = np.resize(np.array(new_image), (self.height, self.height, self.channels))
         return x
 
     def __str__(self):
@@ -98,7 +95,7 @@ class Sobel:
             sum_of_filter1 = _filter.sum()
             _filter = self.kernels[1] * roi
             sum_of_filter2 = _filter.sum()
-            return ((sum_of_filter1 ** 2) + (sum_of_filter2 ** 2)) ** 1 / 2
+            return ((sum_of_filter1 ** 2) + (sum_of_filter2 ** 2)) ** (1 / 2)
         else:
             _filter = self.kernels[axis] * roi
             return _filter.sum()
@@ -113,8 +110,8 @@ class Sobel:
             image = window.getImageInBoundary(image)
             moving_kernel = Window(image, 3, window.stride[0])
 
-        new_tl, new_br = moving_kernel.forwardPos()
-        while moving_kernel.inBoundary(new_br):
+        new_tl, _ = moving_kernel.forwardPos()
+        while moving_kernel.inBoundary(new_tl):
             roi = moving_kernel.getImageInBoundary(image)
             if moving_kernel.changedY():
                 new_roi.append(line)
@@ -123,18 +120,18 @@ class Sobel:
             line.append(self.filter(roi, axis))
 
             moving_kernel.forwardMove()
-            new_tl, new_br = moving_kernel.forwardPos()
+            new_tl, _ = moving_kernel.forwardPos()
 
         return np.array(new_roi)
 
-#
-# sobel = Sobel()
-#
-# image = cv2.imread("1mb pic.png")
-# image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-#
-# win = Window(image, 300, 1)
-# roi = win.getImageInBoundary(image)
-# cv2.imwrite("Output/roi_before_filter.png", roi, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-# filtered = sobel.filterImage(image, axis=3)
-# cv2.imwrite("Output/image_after_filter.png", filtered, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+
+sobel = Sobel()
+
+image = cv2.imread("1mb pic.png")
+#image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+win = Window(image, 300, 1)
+roi = win.getImageInBoundary(image)
+cv2.imwrite("Output/roi_before_filter.png", roi, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+filtered = sobel.filterImage(image, axis=3)
+cv2.imwrite("Output/image_after_filter.png", filtered, [cv2.IMWRITE_PNG_COMPRESSION, 0])
