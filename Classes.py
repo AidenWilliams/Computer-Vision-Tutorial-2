@@ -25,7 +25,6 @@ class Window(object):
     def forwardPos(self):
         # Case when you need to go down and start new line
         if (self.bot_right + self.stride)[0] >= (self.x_boundary - self.height):
-            # print("down")
             return (0, self.top_left[1] + self.stride[1]), (self.height, self.bot_right[1] + self.stride[1])
         # generic move right case
         else:
