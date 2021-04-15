@@ -133,16 +133,46 @@ class Sobel:
         return np.array(new_roi)
 
 
-sobel = Sobel()
+class Kernel:
+    def __init__(self, kernel):
+        self.kernel = kernel
 
-image = cv2.imread("jojo ben.jpg")
-# image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    def filter(self, roi, channels=1):
+        """
+        :param roi: image that will have the filter applied to it
+        :return:
+        """
 
-win = Window(image, 300, 1)
-roi = win.getImageInBoundary(image)
-cv2.imwrite("Output/roi_before_filter.png", roi, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-filtered = sobel.filterImage(image, axis=3)
-cv2.imwrite("Output/image_after_filter.png", filtered, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+        ret = []
+        for i in range(channels):
+            _filter = self.kernel * roi[:, :, i]
+            ret.append(_filter.sum())
+
+        return np.array(ret)
+
+    def filterImage(self, image, stride=1, window=None):
+        new_roi = []
+        line = []
+        if window is None:
+            # go over entire image
+            moving_kernel = Window(image, self.kernel.shape[0], stride)
+        else:
+            image = window.getImageInBoundary(image)
+            moving_kernel = Window(image, self.kernel.shape[0], stride)
+
+        new_tl, _ = moving_kernel.forwardPos()
+        while moving_kernel.inBoundary(new_tl):
+            roi = moving_kernel.getImageInBoundary(image)
+            if moving_kernel.changedY():
+                new_roi.append(line)
+                line = []
+
+            line.append(self.filter(roi, moving_kernel.channels))
+
+            moving_kernel.forwardMove()
+            new_tl, _ = moving_kernel.forwardPos()
+
+        return np.array(new_roi)
 
 
 class Gaussian:
@@ -151,109 +181,17 @@ class Gaussian:
         x = np.arange(0, size, 1, float)
         y = x[:, np.newaxis]
         x0 = y0 = size // 2
-        self.kernel = np.exp(-4 * np.log(2) * ((x - x0) ** 2 + (y - y0) ** 2) / fwhm ** 2)
-
-    def filter(self, roi, channels=1):
-        """
-        :param roi: image that will have the filter applied to it
-        :return:
-        """
-
-        ret = []
-        for i in range(channels):
-            _filter = self.kernel * roi[:, :, i]
-            ret.append(_filter.sum())
-
-        return np.array(ret)
+        self.kernel = Kernel(np.exp(-4 * np.log(2) * ((x - x0) ** 2 + (y - y0) ** 2) / fwhm ** 2))
 
     def filterImage(self, image, stride=1, window=None):
-        new_roi = []
-        line = []
-        if window is None:
-            # go over entire image
-            moving_kernel = Window(image, self.kernel.shape[0], stride)
-        else:
-            image = window.getImageInBoundary(image)
-            moving_kernel = Window(image, self.kernel.shape[0], stride)
+        return self.kernel.filterImage(image, stride, window)
 
-        new_tl, _ = moving_kernel.forwardPos()
-        while moving_kernel.inBoundary(new_tl):
-            roi = moving_kernel.getImageInBoundary(image)
-            if moving_kernel.changedY():
-                new_roi.append(line)
-                line = []
-
-            line.append(self.filter(roi, moving_kernel.channels))
-
-            moving_kernel.forwardMove()
-            new_tl, _ = moving_kernel.forwardPos()
-
-        return np.array(new_roi)
-
-
-# gaussian = Gaussian(5)
-#
-# image = cv2.imread("dead jake.jpg")
-# # image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-#
-# win = Window(image, 300, 1)
-# roi = win.getImageInBoundary(image)
-# cv2.imwrite("Output/roi_before_filter.png", roi, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-# filtered = gaussian.filterImage(image)
-# cv2.imwrite("Output/image_after_filter.png", filtered, [cv2.IMWRITE_PNG_COMPRESSION, 0])
 
 class Bilinear:
     def __init__(self):
-        self.kernel = np.array([[1, 2, 1],
-                                [2, 4, 2],
-                                [1, 2, 1]])
-
-    def filter(self, roi, channels=1):
-        """
-        :param roi: image that will have the filter applied to it
-        :return:
-        """
-
-        ret = []
-        for i in range(channels):
-            _filter = self.kernel * roi[:, :, i]
-            ret.append(_filter.sum())
-
-        return np.array(ret)
+        self.kernel = Kernel(np.array([[1, 2, 1],
+                                       [2, 4, 2],
+                                       [1, 2, 1]]))
 
     def filterImage(self, image, stride=1, window=None):
-        new_roi = []
-        line = []
-        if window is None:
-            # go over entire image
-            moving_kernel = Window(image, self.kernel.shape[0], stride)
-        else:
-            image = window.getImageInBoundary(image)
-            moving_kernel = Window(image, self.kernel.shape[0], stride)
-
-        new_tl, _ = moving_kernel.forwardPos()
-        while moving_kernel.inBoundary(new_tl):
-            roi = moving_kernel.getImageInBoundary(image)
-            if moving_kernel.changedY():
-                new_roi.append(line)
-                line = []
-
-            line.append(self.filter(roi, moving_kernel.channels))
-
-            moving_kernel.forwardMove()
-            new_tl, _ = moving_kernel.forwardPos()
-
-        return np.array(new_roi)
-
-
-gaussian = Bilinear()
-
-image = cv2.imread("1mb pic.png")
-# image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-win = Window(image, 300, 1)
-
-roi = win.getImageInBoundary(image)
-cv2.imwrite("Output/roi_before_filter.png", roi, [cv2.IMWRITE_PNG_COMPRESSION, 0])
-filtered = gaussian.filterImage(image)
-cv2.imwrite("Output/image_after_filter.png", filtered, [cv2.IMWRITE_PNG_COMPRESSION, 0])
+        return self.kernel.filterImage(image, stride, window)
