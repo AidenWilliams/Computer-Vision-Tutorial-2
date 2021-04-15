@@ -1,11 +1,8 @@
 import numpy as np
 
-import cv2
-
 
 class Window(object):
     def __init__(self, image, n, s):
-        # make s can be tuple
         self.x_boundary = image.shape[1] + n
         self.y_boundary = image.shape[0] + s
         self.top_left = (0, 0)
@@ -177,6 +174,7 @@ class Kernel:
 
 class Gaussian:
     def __init__(self, size):
+        # Source: #https://gist.github.com/andrewgiessel/4635563
         fwhm = size // 2
         x = np.arange(0, size, 1, float)
         y = x[:, np.newaxis]
