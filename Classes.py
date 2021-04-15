@@ -90,12 +90,13 @@ class Kernel:
 
             return np.array(ret)
         else:
+            kernel = self.kernel if axis == 0 else self.kernel.T
             ret = []
             for i in range(channels):
                 if channels == 1:
-                    _filter = self.kernel * roi
+                    _filter = kernel * roi
                 else:
-                    _filter = self.kernel * roi[:, :, i]
+                    _filter = kernel * roi[:, :, i]
                 ret.append(_filter.sum() * self.weight)
 
             return np.array(ret)
